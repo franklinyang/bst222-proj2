@@ -1,0 +1,143 @@
+---
+title: "222 project"
+author: "Jay"
+date: "12/6/2019"
+output: html_document
+---
+
+```{r}
+install.packages("ISLR")
+install.packages("glmnet", repos = "http://cran.us.r-project.org")
+install.packages("plotmo")
+library(ISLR)
+library(glmnet)
+library(plotmo)
+
+```
+
+```{r}
+summary(Hitters)
+```
+
+```{r}
+#omitting NA
+Hitters=na.omit(Hitters)
+with(Hitters,sum(is.na(Salary)))
+```
+
+```{r}
+dim(Hitters)
+```
+
+```{r}
+set.seed(16)
+train=sample(seq(263),132,replace=FALSE)
+train
+```
+
+```{r}
+names(Hitters)
+```
+
+```{r}
+#link [https://web.stanford.edu/~hastie/Papers/glmnet.pdf]
+#alpha = 0 is ridge
+#alpha = 1 is lasso
+#alpha between 0 and 1 is elastic net
+```
+
+```{r}
+library(glmnet)
+x=model.matrix(Salary~.-1,data=Hitters) 
+y=Hitters$Salary
+```
+
+```{r}
+#here since alpha = 0, we are doing ridge regression
+lambda_seq = 10^seq(10, -10, by = -.1) 
+#instead of using default NULL lambda, we are using our own lambda sequence
+fit.ridge=glmnet(x,y,alpha=0, lambda  = lambda_seq)
+par(mfrow=c(1,2))
+plot_glmnet(fit.ridge,xvar="lambda")
+#use default label = 10
+
+plot_glmnet(fit.ridge)
+
+#we see that for ridge regression, the lines crosses 0, this is interesting because we 
+#went from positive to negative correlation, I CANNOT find the reason why
+#BUT THIS COULD BE A VERY INTERESTING POINT TO DISCUSS and make our project look super advanced
+
+#and we can also take a look at why certain lines decreases then sharply increase
+```
+
+```{r}
+par(mfrow=c(1,2))
+cv.ridge1=cv.glmnet(x,y,alpha=0, lambda  = lambda_seq) #cross validation with specified lambda
+plot(cv.ridge1)
+
+cv.ridge2=cv.glmnet(x,y,alpha=0) #without specified lambda, my guess is embedded lambda calculated automatically by the function glmnet
+plot(cv.ridge2)
+```
+
+```{r}
+#lasso with alpha = 1
+fit.lasso=glmnet(x,y, alpha = 1,lambda  = lambda_seq)
+par(mfrow=c(1,2))
+plot_glmnet(fit.lasso,xvar="lambda")
+plot_glmnet(fit.lasso)
+
+#we see that for lasso lines never cross 0, unlike ridge
+
+```
+
+```{r}
+par(mfrow=c(1,2))
+cv.lasso1=cv.glmnet(x,y,alpha=1, lambda  = lambda_seq) #cross validation with specified lambda
+plot(cv.lasso1)
+
+cv.lasso2=cv.glmnet(x,y,alpha=1) #without specified lambda, my guess is embedded lambda calculated automatically by the function glmnet
+plot(cv.lasso2)
+```
+
+```{r}
+coef(cv.lasso1)
+coef(cv.lasso2)
+```
+
+```{r}
+#Choosing Optimal Lambda Value through min
+ridge_cv <- cv.glmnet(x,y, alpha = 0)
+best_lambda <- ridge_cv$lambda.min
+best_lambda
+```
+
+```{r}
+#choosing optimal lambda value through plot
+
+lasso.tr=glmnet(x[train,],y[train])
+pred=predict(lasso.tr,x[-train,])
+dim(pred)
+
+rmse= sqrt(apply((y[-train]-pred)^2,2,mean))
+plot(log(lasso.tr$lambda),rmse,type="b",xlab="Log(lambda)")
+
+```
+
+```{r}
+lam.best=lasso.tr$lambda[order(rmse)[1]]
+lam.best
+
+```
+
+```{r}
+coef(lasso.tr,s=lam.best)
+```
+
+```{r}
+fit.elas=glmnet(x,y, alpha = 0.01,lambda  = lambda_seq)
+plot_glmnet(fit.elas,xvar="lambda")
+plot_glmnet(fit.elas)
+
+#elastic net also dont have lines cross 0, how INTERESTING
+```
+
